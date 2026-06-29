@@ -22,22 +22,6 @@ Instead of storing request counts on individual servers, the application uses **
 - PostgreSQL
 - Docker
 
-## 🚀 Getting Started
 
-```bash
-git clone https://github.com/your-username/distributed-rate-limiter.git
-
-cd distributed-rate-limiter
-
-npm install
-```
-
-Run Redis and PostgreSQL, configure your `.env` file, and start the server.
-
-```bash
-npm run dev
-```
-
----
 
 This project is being built to demonstrate backend system design concepts such as distributed systems, caching, middleware, and scalable API architecture.
