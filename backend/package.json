@@ -1,7 +1,7 @@
 {
-  "name": "distributed-rate-limiter",
+  "name": "flow-sheriff-backend",
   "version": "1.0.0",
-  "description": "Distributed Rate Limiter using Redis Token Bucket",
+  "description": "Distributed rate limiter backend using Redis and PostgreSQL",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
@@ -9,10 +9,10 @@
     "dev": "nodemon src/server.js"
   },
   "keywords": [
-    "redis",
     "rate-limiter",
+    "redis",
     "distributed",
-    "express"
+    "nodejs"
   ],
   "author": "Syed Uzair",
   "license": "MIT",
