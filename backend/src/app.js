@@ -3,12 +3,16 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 
+const apiRoutes = require("./routes/apiRoutes");
+
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 app.use(helmet());
 app.use(morgan("dev"));
+
+app.use("/api", apiRoutes);
 
 app.get("/", (req, res) => {
   res.json({
