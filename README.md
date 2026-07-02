@@ -63,8 +63,7 @@
 
 ### Frontend
 - React
-- TanStack Start
-- TypeScript
+
 
 ---
 
