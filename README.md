@@ -279,7 +279,3 @@ Returns PostgreSQL version and active database connections.
 - GitHub: https://github.com/uzueer
 
 ---
-
-## 📄 License
-
-This project is licensed under the MIT License.
