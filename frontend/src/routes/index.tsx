@@ -215,7 +215,7 @@ function Dashboard() {
               <span className="text-xs font-medium">Connected</span>
             </div>
             <a
-              href="https://github.com"
+              href="https://github.com/uzueer/flow-sheriff.git"
               target="_blank"
               rel="noreferrer"
               aria-label="GitHub repository"
