@@ -41,12 +41,24 @@ async function getStats(req, res) {
 }
 
 async function getLogs(req, res) {
-  console.log("🔥 GET LOGS CALLED");
+  try {
+    const result = await pool.query(`
+      SELECT id, endpoint, method, status_code AS status, response_time_ms, remaining_tokens, client_ip, created_at
+      FROM request_logs
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
 
-  res.json({
-    success: true,
-    message: "THIS IS LOGS API"
-  });
+    res.json({
+      success: true,
+      data: result.rows,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
 }
 
 module.exports = {

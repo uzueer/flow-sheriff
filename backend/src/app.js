@@ -16,7 +16,11 @@ const postgresRoutes = require("./routes/postgresRoutes");
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    exposedHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "Retry-After", "X-Server-Id"],
+  })
+);
 app.use(helmet());
 app.use(morgan("dev"));
 

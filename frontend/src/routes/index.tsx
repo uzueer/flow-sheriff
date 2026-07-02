@@ -16,12 +16,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { ArchitectureDiagram } from "@/components/dashboard/ArchitectureDiagram";
 import { RequestLog } from "@/components/dashboard/RequestLog";
 import { RpsChart } from "@/components/dashboard/RpsChart";
-import {
-  mockInitialLog,
-  mockRequest,
-  mockRpsSeries,
-  type RequestLogEntry,
-} from "@/lib/mock-data";
+import { getDashboardStats, getRecentLogs, sendRateLimitRequest, type RequestLogEntry } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,7 +38,7 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-const TOKEN_CAPACITY = 100;
+const TOKEN_CAPACITY = 10;
 
 function SectionCard({
   title,
@@ -104,36 +99,40 @@ function ActionButton({
 }
 
 function Dashboard() {
-  const [log, setLog] = useState<RequestLogEntry[]>(() => mockInitialLog(10));
-  const [allowed, setAllowed] = useState(142);
-  const [blocked, setBlocked] = useState(18);
-  const [tokens, setTokens] = useState(74);
-  const [avgResponse, setAvgResponse] = useState(58);
+  const [log, setLog] = useState<RequestLogEntry[]>([]);
+  const [allowed, setAllowed] = useState(0);
+  const [blocked, setBlocked] = useState(0);
+  const [tokens, setTokens] = useState(TOKEN_CAPACITY);
+  const [avgResponse, setAvgResponse] = useState(0);
   const [activeServer, setActiveServer] = useState<RequestLogEntry["server"] | null>(null);
   const [lastResult, setLastResult] = useState<RequestLogEntry | null>(null);
-  const [rps, setRps] = useState(() => mockRpsSeries(30));
+  const [rps, setRps] = useState<{ t: string; rps: number }[]>([]);
   const activeTimer = useRef<number | null>(null);
 
-  // Token refill — simulates bucket refill.
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setTokens((t) => Math.min(TOKEN_CAPACITY, t + 1));
-    }, 1500);
-    return () => clearInterval(id);
-  }, []);
+  const refreshDashboard = async () => {
+    try {
+      const stats = await getDashboardStats();
+      setAllowed(stats.allowedRequests);
+      setBlocked(stats.blockedRequests);
+      setAvgResponse(Math.round(stats.averageLatency || 0));
+      const recentLogs = await getRecentLogs();
+      setLog(recentLogs);
+      const latestRps = recentLogs.slice(0, 12).map((entry, index) => ({
+        t: entry.time,
+        rps: entry.status === 200 ? 1 + index : 0,
+      }));
+      setRps(latestRps.length > 0 ? latestRps : [{ t: "--", rps: 0 }]);
+    } catch (error) {
+      console.error("Failed to refresh dashboard", error);
+    }
+  };
 
-  // RPS chart drift
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setRps((prev) => {
-        const next = [...prev.slice(1), {
-          t: new Date().toLocaleTimeString([], { hour12: false, minute: "2-digit", second: "2-digit" }),
-          rps: Math.round(40 + Math.random() * 40),
-        }];
-        return next;
-      });
-    }, 2000);
-    return () => clearInterval(id);
+    void refreshDashboard();
+    const intervalId = window.setInterval(() => {
+      void refreshDashboard();
+    }, 4000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const flashActive = (server: RequestLogEntry["server"]) => {
@@ -142,40 +141,49 @@ function Dashboard() {
     activeTimer.current = window.setTimeout(() => setActiveServer(null), 700);
   };
 
-  const performRequest = (forceBlocked = false) => {
-    setTokens((current) => {
-      const noTokens = current <= 0;
-      const entry = mockRequest(forceBlocked || noTokens);
+  const performRequest = async () => {
+    try {
+      const result = await sendRateLimitRequest();
+      const entry: RequestLogEntry = {
+        id: `req-${Date.now()}`,
+        time: new Date().toLocaleTimeString([], { hour12: false, minute: "2-digit", second: "2-digit" }),
+        endpoint: "/api/test",
+        server: (result.serverId as RequestLogEntry["server"]) || "API-1",
+        status: result.status,
+        responseTime: 20 + Math.round(Math.random() * 60),
+      };
       flashActive(entry.server);
       setLastResult(entry);
       setLog((l) => [entry, ...l].slice(0, 50));
       setAvgResponse((prev) => Math.round(prev * 0.7 + entry.responseTime * 0.3));
+      setTokens(Math.max(0, result.remainingTokens));
       if (entry.status === 200) {
         setAllowed((a) => a + 1);
-        return Math.max(0, current - 1);
       } else {
         setBlocked((b) => b + 1);
-        return current;
       }
-    });
+    } catch (error) {
+      console.error("Request failed", error);
+    }
   };
 
   const sendBatch = (n: number) => {
     let i = 0;
     const id = window.setInterval(() => {
-      performRequest();
+      void performRequest();
       i += 1;
       if (i >= n) window.clearInterval(id);
     }, 120);
   };
 
-  const resetCounters = () => {
+  const resetCounters = async () => {
     setAllowed(0);
     setBlocked(0);
     setTokens(TOKEN_CAPACITY);
     setLog([]);
     setLastResult(null);
     setAvgResponse(0);
+    await refreshDashboard();
   };
 
   const runLoadTest = () => sendBatch(40);
@@ -244,7 +252,7 @@ function Dashboard() {
             className="lg:col-span-3"
           >
             <div className="flex flex-wrap gap-2">
-              <ActionButton onClick={() => performRequest()} icon={Send} variant="primary">
+              <ActionButton onClick={() => void performRequest()} icon={Send} variant="primary">
                 Send Request
               </ActionButton>
               <ActionButton onClick={() => sendBatch(10)} icon={Activity}>
@@ -253,7 +261,7 @@ function Dashboard() {
               <ActionButton onClick={runLoadTest} icon={Play}>
                 Run Load Test
               </ActionButton>
-              <ActionButton onClick={resetCounters} icon={RotateCcw} variant="danger">
+              <ActionButton onClick={() => void resetCounters()} icon={RotateCcw} variant="danger">
                 Reset Counter
               </ActionButton>
             </div>

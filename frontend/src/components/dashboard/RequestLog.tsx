@@ -1,4 +1,4 @@
-import type { RequestLogEntry } from "@/lib/mock-data";
+import type { RequestLogEntry } from "@/lib/api";
 
 export function RequestLog({ entries }: { entries: RequestLogEntry[] }) {
   return (
